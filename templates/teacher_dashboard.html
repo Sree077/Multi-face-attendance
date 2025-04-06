@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .course-card {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .course-card:hover {
+            transform: translateY(-5px);
+        }
+        .course-card.active {
+            border-color: #0d6efd;
+            background-color: #f8f9fa;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+        }
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .video-feed {
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: block;
+        }
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1;
+        }
+        .camera-controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-active {
+            background-color: #28a745;
+        }
+        .status-inactive {
+            background-color: #dc3545;
+        }
+        .absent-controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Attendance System</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('attendance') }}">View Attendance</a>
+                <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h2>Welcome, {{ name }}</h2>
+
+        <!-- Course Selection -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h3>Select Course</h3>
+                <div class="row">
+                    {% for code, name in courses.items() %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card course-card {% if current_course == code %}active{% endif %}"
+                             onclick="window.location.href='{{ url_for('select_course', course_code=code) }}';">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ code }}</h5>
+                                <p class="card-text">{{ name }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Camera Controls -->
+        <div class="camera-controls">
+            <h3>Camera Controls</h3>
+            <div class="mb-3">
+                <span class="status-indicator {% if camera_running %}status-active{% else %}status-inactive{% endif %}"></span>
+                Camera Status: {% if camera_running %}Active{% else %}Inactive{% endif %}
+            </div>
+            {% if current_course %}
+                {% if not camera_running %}
+                    <a href="{{ url_for('start_camera') }}" class="btn btn-success">Start Camera</a>
+                {% else %}
+                    <div class="btn-group">
+                        <a href="{{ url_for('camera_view') }}" class="btn btn-primary">Open Camera View</a>
+                        <a href="{{ url_for('stop_camera') }}" class="btn btn-danger">Stop Camera</a>
+                    </div>
+                {% endif %}
+            {% else %}
+                <p class="text-warning">Please select a course first to start the camera.</p>
+            {% endif %}
+        </div>
+
+        <!-- Attendance Management -->
+        <div class="absent-controls">
+            <h3>Attendance Management</h3>
+            {% if current_course %}
+                <a href="{{ url_for('mark_absent') }}" class="btn btn-warning">
+                    <i class="fas fa-user-slash"></i> Mark Absent Students
+                </a>
+                <a href="{{ url_for('attendance') }}" class="btn btn-info ms-2">
+                    <i class="fas fa-list"></i> View Attendance Records
+                </a>
+            {% else %}
+                <p class="text-warning">Please select a course first to manage attendance.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const videoFeed = document.querySelector('.video-feed');
+            if (videoFeed) {
+                videoFeed.onerror = function() {
+                    alert('Failed to load video feed. Please try refreshing the page.');
+                };
+            }
+        });
+    </script>
+</body>
+</html>

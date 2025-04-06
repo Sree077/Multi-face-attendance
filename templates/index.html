@@ -1,0 +1,37 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Attendance</title>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; }
+        img { border: 2px solid black; margin-top: 20px; display: block; margin-left: auto; margin-right: auto; }
+        a, button { text-decoration: none; font-size: 20px; padding: 10px; width: 200px; margin: 10px; border-radius: 5px; cursor: pointer; display: inline-block; }
+        .btn-start { background: green; color: white; }
+        .btn-stop { background: red; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Face Recognition Attendance</h1>
+    
+    {% if camera_running %}
+        <img src="{{ url_for('video_feed') }}" width="640">
+    {% else %}
+        <p>Camera is off</p>
+    {% endif %}
+
+    <br><br>
+
+    {% if not camera_running %}
+        <a class="btn-start" href="{{ url_for('start_camera') }}">Start Camera</a>
+    {% endif %}
+    
+    {% if camera_running %}
+        <a class="btn-stop" href="{{ url_for('stop_camera') }}">Stop Camera</a>
+    {% endif %}
+
+    <br><br>
+    <a href="{{ url_for('attendance') }}">View Attendance</a>
+</body>
+</html>
