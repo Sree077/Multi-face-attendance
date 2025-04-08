@@ -1,8 +1,8 @@
 import cv2
 import os
 
-video_path = 'Dany.mp4'
-person_name = 'Dany Koshy P'  # You can change this as needed
+video_path = 'Ujin.mp4'
+person_name = 'Ujin S Thomas'  # You can change this as needed
 output_folder = os.path.join('dataset', person_name)
 
 os.makedirs(output_folder, exist_ok=True)
