@@ -6,9 +6,12 @@ import pandas as pd
 from datetime import datetime, timedelta
 import os
 from functools import wraps
-
+from flask_socketio import SocketIO, emit
+import json
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'  # Change this to a secure secret key
+socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
+connected_clients = {}
 
 ENCODINGS_FILE = "encodings.pkl"
 ATTENDANCE_FILE = "attendance.csv"
@@ -594,7 +597,35 @@ def add_security_headers(response):
     return response
 
 
-# Add this new route to app.py (anywhere with other routes)
+@app.route('/test_notification/<username>')
+def test_notification(username):
+    socketio.emit('attendance_notification',
+                  {'message': 'Test notification', 'course': 'TEST', 'time': datetime.now().strftime("%H:%M")},
+                  room=username)
+    return "Notification sent"
+
+
+# SocketIO Events
+@socketio.on('connect')
+def handle_connect():
+    print(f"Client connected! SID: {request.sid}")
+    if 'username' in session:
+        username = session['username']
+        connected_clients[username] = request.sid
+        print(f"User {username} connected with SID: {request.sid}")
+    else:
+        print("No username in session during connect")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"Client disconnected! SID: {request.sid}")
+    if 'username' in session:
+        username = session['username']
+        connected_clients.pop(username, None)
+        print(f"User {username} disconnected")
+
+
+# Update the mark_absent route to send notifications
 @app.route('/mark_absent', methods=['GET', 'POST'])
 @login_required
 @teacher_required
@@ -632,11 +663,9 @@ def mark_absent():
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         try:
-            # Read existing attendance or create new DataFrame
             df = pd.read_csv(ATTENDANCE_FILE) if os.path.exists(ATTENDANCE_FILE) else pd.DataFrame(
                 columns=["Name", "Time", "Course", "Status"])
 
-            # Add absent records
             new_records = []
             for student in absent_selected:
                 new_records.append({
@@ -645,6 +674,28 @@ def mark_absent():
                     "Course": course_code,
                     "Status": "Absent"
                 })
+
+                # Send notification to student if they're connected
+                if student in connected_clients:
+                    socketio.emit('attendance_notification',
+                                  {
+                                      'message': f'You have been marked absent for {COURSES[course_code]}',
+                                      'course': course_code,
+                                      'time': datetime.now().strftime("%H:%M")
+                                  },
+                                  room=connected_clients[student])
+
+            print(f"Attempting to notify student: {student}")
+            print(f"Connected clients: {connected_clients}")
+            if student in connected_clients:
+                print(f"Sending notification to SID: {connected_clients[student]}")
+                socketio.emit('attendance_notification', {
+                    'message': f'You have been marked absent for {COURSES[course_code]}',
+                    'course': course_code,
+                    'time': datetime.now().strftime("%H:%M")
+                }, room=connected_clients[student])
+            else:
+                print(f"Student {student} not currently connected")
 
             if new_records:
                 new_df = pd.DataFrame(new_records)
@@ -664,5 +715,7 @@ def mark_absent():
                            absent_students=absent_students,
                            course_code=course_code,
                            course_name=COURSES.get(course_code, 'Unknown Course'))
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)
