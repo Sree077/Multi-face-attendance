@@ -78,6 +78,21 @@
         .notification {
             animation: slideIn 0.5s forwards;
         }
+        /* Add to your styles */
+.notice-item {
+    border-left: 3px solid #17a2b8;
+    padding: 10px;
+    margin: 5px 0;
+}
+
+.notice-item img {
+    max-height: 150px;
+    object-fit: contain;
+}
+
+.dropdown-item {
+    white-space: normal;
+}
         @keyframes slideIn {
             from { transform: translateX(100%); }
             to { transform: translateX(0); }
@@ -228,7 +243,7 @@
                     setTimeout(() => {
                         notification.classList.remove('show');
                         setTimeout(() => notification.remove(), 300);
-                    }, 5000);
+                    }, 10000);
                 }
             };
 
@@ -243,6 +258,60 @@
             });
         }
     })();
+    // Update the notification handler
+socket.on('new_notice', function(data) {
+    console.log('New notice received:', data);
+
+    // Add to notifications array
+    attendanceApp.notifications.unshift({
+        type: 'notice',
+        course: data.course,
+        title: data.title,
+        description: data.description,
+        image_url: data.image_url,
+        time: data.time,
+        timestamp: new Date()
+    });
+
+    // Update UI
+    attendanceApp.updateNotificationUI();
+
+    // Browser notification
+    if (Notification.permission === "granted") {
+        new Notification(`New Notice: ${data.title}`, {
+            body: data.description,
+            icon: data.image_url || "/static/images/logo.png"
+        });
+    }
+});
+
+// Update the updateNotificationUI() function
+updateNotificationUI: function() {
+    // ... existing badge count code ...
+
+    // Update dropdown list
+    const listContainer = document.getElementById('notificationList');
+    listContainer.querySelectorAll('.notice-item').forEach(el => el.remove());
+
+    // Add notices to dropdown
+    this.notifications.filter(n => n.type === 'notice').forEach(notice => {
+        const item = document.createElement('li');
+        item.className = 'notice-item';
+        item.innerHTML = `
+            <a class="dropdown-item" href="#">
+                <div class="d-flex justify-content-between">
+                    <strong>${notice.title}</strong>
+                    <small class="text-muted">${notice.time}</small>
+                </div>
+                <div class="mb-2">${notice.description}</div>
+                ${notice.image_url ?
+                  `<img src="${notice.image_url}" class="img-fluid rounded mb-2" alt="Notice image">` : ''}
+                <small class="text-muted">${notice.course}</small>
+            </a>
+        `;
+        listContainer.insertBefore(item, listContainer.firstChild.nextSibling);
+    });
+}
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

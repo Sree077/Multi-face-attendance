@@ -1,4 +1,4 @@
-﻿from flask import Flask, render_template, Response, redirect, url_for, request, session, flash, make_response
+﻿from flask import Flask, render_template, Response, redirect, url_for, request, session, flash, make_response, jsonify
 import face_recognition
 import cv2
 import pickle
@@ -8,6 +8,7 @@ import os
 from functools import wraps
 from flask_socketio import SocketIO, emit
 import json
+from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'  # Change this to a secure secret key
 socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
@@ -46,7 +47,7 @@ USERS = {
         'password': 'teacher456',
         'role': 'teacher',
         'name': 'Mrs Rakhimol V',
-        'courses': ['CST 466']
+        'courses': ['CST 466', 'CST 402']
     },
     'teacher4': {
         'password': 'teacher456',
@@ -716,6 +717,58 @@ def mark_absent():
                            course_code=course_code,
                            course_name=COURSES.get(course_code, 'Unknown Course'))
 
+
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/send_notice', methods=['POST'])
+@teacher_required
+def send_notice():
+    try:
+        # Get form data
+        course = request.form['course']
+        title = request.form['title']
+        description = request.form['description']
+
+        # Handle file upload
+        image_url = None
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(f"{datetime.now().timestamp()}_{file.filename}")
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                image_url = url_for('static', filename=f'uploads/{filename}')
+
+        # Get all students in this course
+        students = [name for name, user_data in USERS.items()
+                    if user_data['role'] == 'student' and course in user_data['courses']]
+
+        # Send notice to each student
+        notice_data = {
+            'type': 'notice',
+            'course': course,
+            'title': title,
+            'description': description,
+            'time': datetime.now().strftime("%H:%M"),
+            'image_url': image_url
+        }
+
+        for student in students:
+            if student in connected_clients:
+                socketio.emit('new_notice', notice_data, room=connected_clients[student])
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        print(f"Error sending notice: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)
